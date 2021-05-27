@@ -1,0 +1,1 @@
+Change int menu to enum
