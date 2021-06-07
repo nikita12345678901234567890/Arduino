@@ -105,20 +105,20 @@ void setup()
   status = apds.init(); // Initialize the comunication library
   if (status != NO_ERROR)
   {
-    Serial.println("Error during initialization");
-    while(true);
+    Serial.println("Error during gesture initialization");
+    //while(true);
   }
   status = apds.reset(); // Reset all interrupt settings and power off the device
   if (status != NO_ERROR){
-    Serial.println("Error during reset.");
-    while(true);
+    Serial.println("Error during gesture reset.");
+    //while(true);
   }
-  Serial.println("Device initialized correctly!");
+  else
+  {
+    Serial.println("Gesture initialized correctly!");
+  }
 
-  //Gesture sensor settings:
-  Serial.println("Device initialized correctly!");
-
-  // Gesture engine settings
+  // Gesture engine settings:
   apds.enableGesturesEngine(); // enable the gesture engine
   apds.setGestureProxEnterThreshold(25); // Enter the gesture engine only when the proximity value 
   // is greater than this value proximity value ranges between 0 and 255 where 0 is far away and 255 is very near.
@@ -131,9 +131,6 @@ void setup()
   
 
   //Clock initialization:
-#ifndef ESP8266
-  while (!Serial); // wait for serial port to connect. Needed for native USB
-#endif
 
   if (! rtc.begin())
   {
@@ -194,13 +191,13 @@ void loop()
   updateGyroValues();
   updateHeadings();
 
-  Serial.println(quaternion[2]);
+  Serial.println(quaternion[0]);
   //Flipping display:
-  if((quaternion[2] < 0 && quaternion[2] < -0.7) || (quaternion[2] > 0 && quaternion[2] > 0.7))
+  if(quaternion[0] < 0.8)
   {
     flip = false;
   }
-  if((quaternion[2] < 0 && quaternion[2] > -0.6) || (quaternion[2] > 0 && quaternion[2] < 0.6))
+  else
   {
     flip = true;
   }
