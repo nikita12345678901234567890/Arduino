@@ -57,13 +57,13 @@ void loop()
 
 void printQuaternion()
 {
-  Serial.print("Quat W: ");
+  Serial.print("Quat W[0]: ");
   Serial.print(quaternion[0]);
-  Serial.print("  Quat X: ");
+  Serial.print("  Quat X[1]: ");
   Serial.print(quaternion[1]);
-  Serial.print("  Quat Y: ");
+  Serial.print("  Quat Y[2]: ");
   Serial.print(quaternion[2]);
-  Serial.print("  Quat Z: ");
+  Serial.print("  Quat Z[3]: ");
   Serial.print(quaternion[3]);
 }
 

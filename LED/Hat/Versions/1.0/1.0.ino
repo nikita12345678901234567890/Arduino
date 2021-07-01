@@ -191,9 +191,9 @@ void loop()
   updateGyroValues();
   updateHeadings();
 
-  Serial.println(quaternion[0]);
+  Serial.println(quaternion[1]);
   //Flipping display:
-  if(quaternion[0] < 0.8)
+  if(quaternion[1] > 0.8 || quaternion[1] < -0.8)
   {
     flip = false;
   }

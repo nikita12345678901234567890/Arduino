@@ -1,51 +1,29 @@
 /*
-For black arduino:
-D20 - SDA
-D21 - SCL
+                    CHANGE LOG
+Added scrolling text
+Set text to "Hello GMR"
+Added random text colors
+
+
+                    Notes for future me:
+                    
+The gesture sensor lags program, so if text is slow, just lift the hat so the proximity doesn't detect anything.
 */
 
-//This code does not work!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-
-//Matrix Libraries:
+//Matrix libraries:
 #include <Adafruit_GFX.h>
 #include <Adafruit_NeoMatrix.h>
 #include <Adafruit_NeoPixel.h>
-//Gesture Sensor library:
-#include "Adafruit_APDS9960.h"
-//Clock library:
+//Gesture sensor library:
+#include "Melopero_APDS9960.h"
+//Clock library
 #include "RTClib.h"
 //Gyro library:
 #include <Wire.h>
 
 //Matrix pin:
 #define PIN 6
-
-//Bunch of gyro variables:
-#define  CTRL_REG1  0x20
-#define  CTRL_REG2  0x21
-#define  CTRL_REG3  0x22
-#define  CTRL_REG4  0x23
-#define  CTRL_REG5  0x24
-#define  CTRL_REG6  0x25
-
-int gyroI2CAddr=105;
-
-int gyroRaw[3];                         // raw sensor data, each axis, pretty useless really but here it is.
-double gyroDPS[3];                      // gyro degrees per second, each axis
-
-float heading[3]={0.0f};                // heading[x], heading[y], heading [z]
-float quaternion[4]={1.0f,0.0f,0.0f,0.0f};
-float euler[3]={0.0f};
-
-int gyroZeroRate[3];                    // Calibration data.  Needed because the sensor does center at zero, but rather always reports a small amount of rotation on each axis.
-int gyroThreshold[3];                   // Raw rate change data less than the statistically derived threshold is discarded.
-
-#define  NUM_GYRO_SAMPLES  50           // As recommended in STMicro doc
-#define  GYRO_SIGMA_MULTIPLE  0         // As recommended
-
-float dpsPerDigit=.00875f;              // for conversion to degrees per second
-//End of gyro variables
 
 // MATRIX DECLARATION:
 // Parameter 1 = width of NeoPixel matrix
@@ -73,6 +51,8 @@ float dpsPerDigit=.00875f;              // for conversion to degrees per second
 // Arduino.  When held that way, the first pixel is at the top right, and
 // lines are arranged in columns, progressive order.  The shield uses
 // 800 KHz (v2) pixels that expect GRB color data.
+
+//Normal matrix:
 Adafruit_NeoMatrix matrix = Adafruit_NeoMatrix(32, 8, PIN,
   NEO_MATRIX_BOTTOM     + NEO_MATRIX_RIGHT +
   NEO_MATRIX_COLUMNS + NEO_MATRIX_ZIGZAG,
@@ -83,53 +63,116 @@ Adafruit_NeoMatrix matrix2 = Adafruit_NeoMatrix(32, 8, PIN,
   NEO_MATRIX_COLUMNS + NEO_MATRIX_ZIGZAG,
   NEO_GRB            + NEO_KHZ800);
 
-//Gesture sensor declaration:
-Adafruit_APDS9960 apds;
+//Gesture sensor declaration
+Melopero_APDS9960 apds;
 
 //Clock declaration:
 RTC_DS3231 rtc;
+
+//Gyro variables:
+#define  CTRL_REG1  0x20
+#define  CTRL_REG2  0x21
+#define  CTRL_REG3  0x22
+#define  CTRL_REG4  0x23
+#define  CTRL_REG5  0x24
+#define  CTRL_REG6  0x25
+
+int gyroI2CAddr=105;
+
+int gyroRaw[3];                         // raw sensor data, each axis, pretty useless really but here it is.
+double gyroDPS[3];                      // gyro degrees per second, each axis
+
+float heading[3]={0.0f};                // heading[x], heading[y], heading [z]
+float quaternion[4]={1.0f,0.0f,0.0f,0.0f};
+float euler[3]={0.0f};
+
+int gyroZeroRate[3];                    // Calibration data.  Needed because the sensor does center at zero, but rather always reports a small amount of rotation on each axis.
+int gyroThreshold[3];                   // Raw rate change data less than the statistically derived threshold is discarded.
+
+#define  NUM_GYRO_SAMPLES  50           // As recommended in STMicro doc
+#define  GYRO_SIGMA_MULTIPLE  0         // As recommended
+
+float dpsPerDigit=.00875f;              // for conversion to degrees per second
+
+
+//Clock variable:
+char daysOfTheWeek[7][12] = {"Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"};
 
 void setup()
 {
   Serial.begin(9600);
   
-  //Matrix initialization:
+  //Matrix stuff
   matrix.begin();
   matrix.setTextWrap(false);
   matrix.setBrightness(50);
   matrix.setTextColor(matrix.Color(255, 0, 0));
-  //Upside down matrix initialization:
+  //Same stuff for other matrix
   matrix2.begin();
   matrix2.setTextWrap(false);
   matrix2.setBrightness(50);
   matrix2.setTextColor(matrix.Color(255, 0, 0));
-  
-  //Gesture sensor initialization:
-  if(!apds.begin())
+
+  //Gesture sensor initialization
+  int8_t status = NO_ERROR;
+  status = apds.init(); // Initialize the comunication library
+  if (status != NO_ERROR)
   {
-    Serial.println("Failed to initialize gesture sensor! Please check your wiring.");
+    Serial.println("Error during gesture initialization");
+    //while(true);
+  }
+  status = apds.reset(); // Reset all interrupt settings and power off the device
+  if (status != NO_ERROR){
+    Serial.println("Error during gesture reset.");
+    //while(true);
   }
   else
   {
-    Serial.println("Gesture sensor initialized!");
+    Serial.println("Gesture initialized correctly!");
   }
+
+  // Gesture engine settings:
+  apds.enableGesturesEngine(); // enable the gesture engine
+  apds.setGestureProxEnterThreshold(25); // Enter the gesture engine only when the proximity value 
+  // is greater than this value proximity value ranges between 0 and 255 where 0 is far away and 255 is very near.
+  apds.setGestureExitThreshold(20); // Exit the gesture engine only when the proximity value is less 
+  // than this value.
+  apds.setGestureExitPersistence(EXIT_AFTER_1_GESTURE_END); // Exit the gesture engine only when 4
+  // consecutive gesture end signals are fired (distance is greater than the threshold)
+
+  apds.wakeUp(); // wake up the device
   
-  //Gesture mode will be entered once proximity mode senses something close
-  apds.enableProximity(true);
-  apds.enableGesture(true);
 
   //Clock initialization:
+
   if (! rtc.begin())
   {
-    Serial.println("Couldn't find clock");
+    Serial.println("Couldn't find RTC");
   }
-  
-  //Setting the time on clock (rtc.adjust(DateTime(F(__DATE__), F(__TIME__))); will set time to when program was compiled)
-  
+
+  if (rtc.lostPower())
+  {
+    Serial.println("RTC lost power, let's set the time!");
+    // When time needs to be set on a new device, or after a power loss, the
+    // following line sets the RTC to the date & time this sketch was compiled
+    rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
+    // This line sets the RTC with an explicit date & time, for example to set
+    // January 21, 2014 at 3am you would call:
+    // rtc.adjust(DateTime(2014, 1, 21, 3, 0, 0));
+
+    // When time needs to be re-set on a previously configured device, the
+    // following line sets the RTC to the date & time this sketch was compiled
+    // rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
+    // This line sets the RTC with an explicit date & time, for example to set
+    // January 21, 2014 at 3am you would call:
+    // rtc.adjust(DateTime(2014, 1, 21, 3, 0, 0));
+  }
+  rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
+
   //Gyro initialization:
   Wire.begin();
   setupGyro();
-  //calibrateGyro();////////////////////////////
+  calibrateGyro();
 }
 
 //Standard colors:
@@ -140,97 +183,127 @@ uint16_t blue = matrix.Color(0,0,255);
 uint16_t white = matrix.Color(255, 255, 255);
 uint16_t off = matrix.Color(0, 0, 0);
 
-//Menu default:
-int menu = 0;
-//Menu stuff:
+int ColorCount = 5; //Because arduino is stupid and doesn't have an array.length
+uint16_t colors[] = {red, orange, green, blue, white};
+
+bool flip = true;
+
+//menu stuff:
+int menu = 1;
 int menuMax = 1;
 
-/*
-Menu items:
-0 - Clock
-1 - Default Message
-*/
+//String that displays when time is selected:
+String Time;
 
-//Display flipping:
-bool flip = false;
+String Text = "Hello GMR";
 
-//Timer for flashing ':':
-long prevTime = 0;
-bool on = true;
+int TextPosition = 32;
+int LeftMostTextPosition = -55;
+int RightMostTextPosition = 32;
+int Delay = 50; //The amount of milliseconds between incrementing the TextPosition.
+unsigned long PrevTime = 0;
+uint16_t CurrentTextColor = orange;
 
 void loop()
 {
-  Serial.println("Loop");
   matrix.clear();
   matrix2.clear();
-  //Update gesture sensor:
-  uint8_t gesture = apds.readGesture();
-  //Update clock:
+
+  //Clock update:
   DateTime now = rtc.now();
-  //Update gyro:
+
+  //Gyro update:
   updateGyroValues();
   updateHeadings();
-  
-  //Checking gyro values and flipping display:
-  //if(/*gyro normal*/)
-  //{
-    //flip = false;
-  //}
-  //else if(/*gyro flipped*/)
-  //{
-    //flip = true;
-  //}
-  
-  //Detecting gesture and changing menu position:
-  if(gesture == APDS9960_LEFT && menu >= 1)
+
+  //Flipping display:
+  Serial.println(quaternion[1]);
+  if(quaternion[1] > 0.8 || quaternion[1] < -0.8)
   {
-    menu--;
+    flip = false;
   }
-  if(gesture == APDS9960_RIGHT && menu <= menuMax - 1)
+  else
   {
-    menu++;
+    flip = true;
   }
+
   
-  //Checking if enough time has passed and toggling ':':
-  if(millis() - prevTime >= 500)
+  //Gesture sensor update:
+  apds.updateGestureStatus();
+
+  if (apds.gestureFifoHasData)
   {
-    on = !on;
-    prevTime = millis();
+    // Reads the gesture data for the given amount of time and tries to interpret a gesture. 
+    // The device tries to detect a gesture by comparing the gesture data values through time. 
+    // The device compares the up data with the down data to detect a gesture on the up-down axis and
+    // it compares the left data with the right data to detect a gesture on the left right axis.
+    //
+    // ADVANCED SETTINGS:
+    // device.parseGesture(uint parse_millis, uint8_t tolerance = 12, uint8_t der_tolerance = 6, uint8_t confidence = 6);
+    //
+    // parse_millis: the time in millisecond to read the gesture data and try to interpret a gesture
+    //
+    // The tolerance parameter determines how much the two values (on the same axis) have to differ to interpret
+    // the current dataset as valid for gesture detection (if the values are nearly the same then its not possible to decide the direction 
+    // in which the object is moving).
+    //
+    // The der_tolerance does the same for the derivative of the two curves (the values on one axis through time):
+    // this prevents the device from detecting a gesture if the objects surface is not even...
+    //
+    // The confidence tells us the minimum amount of "detected gesture samples" needed for an axis to tell that a gesture has been detected on that axis:
+    // How its used in the source code: if (detected_up_gesture_samples > detected_down_gesture_samples + confidence) gesture_up_down = GESTURE_UP
+    apds.parseGesture(300);
+
+    if (apds.parsedLeftRightGesture == LEFT_GESTURE && menu > 0)
+    {
+        menu--;
+    }
+    
+    else if (apds.parsedLeftRightGesture == RIGHT_GESTURE && menu < menuMax)
+    {
+        menu++;
+    }
   }
+
   
-  //Displaying menu items according to position:
   switch(menu)
   {
     case 0:
-      //Adding a '0' if minutes < 10
+      Time = String("");
+      if(now.hour() < 10)
+      {
+        Time += "0";
+      }
+      Time += (String)now.hour();
+      Time += ":";
       if(now.minute() < 10)
       {
-        //Checking if ':' is on and printing accordingly:
-        if(on)
-        {
-          Print((String)now.hour() + ":0" + (String)now.minute(), red, flip);
-        }
-        else
-        {
-          Print((String)now.hour() + " 0" + (String)now.minute(), red, flip);
-        }
+        Time += "0";
       }
-      else
-      {
-        //Checking if ':' is on and printing accordingly:
-        if(on)
-        {
-          Print((String)now.hour() + ":" + (String)now.minute(), red, flip);
-        }
-        else
-        {
-          Print((String)now.hour() + " " + (String)now.minute(), red, flip);
-        }
-      }
+      Time += (String)now.minute();
+      Print(Time, blue, flip);
       break;
+      
     case 1:
-      Print("Hello", blue, flip);
+      Print(Text, CurrentTextColor, TextPosition, 0, 0, flip);
       break;
+  }
+
+
+  //Moving the TextPosition:
+  int elapsedTime = millis() - PrevTime;
+
+  if(elapsedTime >= Delay)
+  {
+    TextPosition--;
+    PrevTime = millis();
+  }
+
+  if(TextPosition <= LeftMostTextPosition) //Checking if text has left the screen
+  {
+    TextPosition = RightMostTextPosition; //Reseting the text back to the right side of the screen
+
+    CurrentTextColor = colors[random(0, ColorCount)];
   }
 }
 
@@ -239,9 +312,14 @@ void Print(String text, uint16_t color, bool flip)
   Print(text, color, 0, 0, 0, flip);
 }
 
+void Print(String text, uint16_t color)
+{
+  Print(text, color, 0, 0, 0, false);
+}
+
 void Print(String text, uint16_t color, int x, int y, int Size, bool flip)
 {
-  if(!flip)
+  if(flip)
   {
     matrix.setTextSize(Size);
     matrix.setCursor(x, y);
@@ -266,47 +344,6 @@ void Print(String text, uint16_t color, int x, int y, int Size, bool flip)
 }
 
 //Gyro functions:
-void printQuaternion()
-{
-  Serial.print("Quat W: ");
-  Serial.print(quaternion[0]);
-  Serial.print("  Quat X: ");
-  Serial.print(quaternion[1]);
-  Serial.print("  Quat Y: ");
-  Serial.print(quaternion[2]);
-  Serial.print("  Quat Z: ");
-  Serial.print(quaternion[3]);
-}
-
-void printEuler()
-{
-  Serial.print("Euler R: ");
-  Serial.print(euler[0]);
-  Serial.print("  P: ");
-  Serial.print(euler[1]);
-  Serial.print("  Y: ");
-  Serial.print(euler[2]);
-}
-
-void printDPS()
-{
-  Serial.print("DPS X: ");
-  Serial.print(gyroDPS[0]);
-  Serial.print("  Y: ");
-  Serial.print(gyroDPS[1]);
-  Serial.print("  Z: ");
-  Serial.print(gyroDPS[2]);
-}
-
-void printHeadings()
-{
-  Serial.print("Heading X: ");
-  Serial.print(heading[0]);
-  Serial.print("  Y: ");
-  Serial.print(heading[1]);
-  Serial.print("  Z: ");
-  Serial.print(heading[2]);
-}
 
 float safe_asin(float v)
 {
