@@ -218,7 +218,7 @@ void loop()
 
   //Flipping display:
   Serial.println(quaternion[1]);
-  if(quaternion[1] > 0.8 || quaternion[1] < -0.8)
+  if(quaternion[1] > 0.6 || quaternion[1] < -0.6)
   {
     flip = false;
   }
